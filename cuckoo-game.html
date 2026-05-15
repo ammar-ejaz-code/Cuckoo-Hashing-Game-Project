@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuckoo Hash — The Nest Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky: #0f1b2d;
+    --sky2: #1a2f4a;
+    --gold: #f5c842;
+    --orange: #f07b2d;
+    --green: #4ecb71;
+    --red: #e84545;
+    --blue: #4a9eff;
+    --purple: #9b6dff;
+    --card: #162236;
+    --card2: #1e2f44;
+    --border: #2a4060;
+    --text: #e8f0fe;
+    --muted: #7a9cc0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--sky);
+    background-image:
+      radial-gradient(ellipse at 20% 10%, #0a2a4a 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, #0a1f3a 0%, transparent 50%);
+    font-family: 'Nunito', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  /* Stars */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1px 1px at 25% 40%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(1.5px 1.5px at 50% 8%, rgba(255,255,255,0.7), transparent),
+      radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,0.5), transparent),
+      radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,0.6), transparent),
+      radial-gradient(1px 1px at 35% 70%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(1.5px 1.5px at 60% 85%, rgba(255,255,255,0.5), transparent),
+      radial-gradient(1px 1px at 15% 90%, rgba(255,255,255,0.4), transparent);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; width: 100%; max-width: 860px; }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .logo {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    color: var(--gold);
+    letter-spacing: 1px;
+    text-shadow: 0 0 30px rgba(245,200,66,0.4);
+    line-height: 1;
+  }
+  .logo span { color: var(--orange); }
+  .subtitle {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-top: 4px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  /* Score bar */
+  .scorebar {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 20px;
+    text-align: center;
+    min-width: 90px;
+  }
+  .stat-val {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.6rem;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+  /* Algorithm info */
+  .algo-box {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.6;
+    border-left: 4px solid var(--purple);
+  }
+  .algo-box strong { color: var(--purple); font-size: 0.9rem; }
+  .algo-box code {
+    background: #0f1b2d;
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-family: monospace;
+    font-size: 0.82rem;
+    color: var(--gold);
+  }
+
+  /* Bird queue */
+  .queue-section {
+    margin-bottom: 18px;
+  }
+  .section-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .bird-queue {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .bird-card {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 70px;
+    position: relative;
+    user-select: none;
+  }
+  .bird-card:hover { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+  .bird-card.selected { border-color: var(--gold); background: #1e2e15; box-shadow: 0 0 0 3px rgba(245,200,66,0.25); }
+  .bird-card.placing { animation: bounce 0.4s ease; }
+  .bird-emoji { font-size: 1.8rem; }
+  .bird-key {
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.95rem;
+    color: var(--gold);
+  }
+  .bird-hash {
+    font-size: 0.65rem;
+    color: var(--muted);
+    font-family: monospace;
+  }
+
+  @keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Tables */
+  .tables-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 560px) { .tables-row { grid-template-columns: 1fr; } }
+
+  .table-panel {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 10px 16px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1.5px solid var(--border);
+  }
+  .table1 .table-header { color: var(--blue); background: rgba(74,158,255,0.06); }
+  .table2 .table-header { color: var(--orange); background: rgba(240,123,45,0.06); }
+  .hash-formula { font-family: monospace; font-size: 0.75rem; opacity: 0.7; }
+
+  .nest-list { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+  .nest {
+    background: var(--card2);
+    border: 1.5px solid var(--border);
+    border-radius: 11px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .nest:hover { border-color: var(--muted); }
+  .nest.target { border-color: var(--green); background: rgba(78,203,113,0.07); box-shadow: 0 0 14px rgba(78,203,113,0.15); }
+  .nest.wrong { border-color: var(--red); animation: shake 0.4s; }
+  .nest.evicted { border-color: var(--gold); animation: flash 0.4s; }
+  .nest.occupied { cursor: default; }
+  .nest.empty:hover { border-color: var(--green); background: rgba(78,203,113,0.05); }
+
+  .nest-idx {
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.85rem;
+    color: var(--muted);
+    min-width: 24px;
+  }
+  .nest-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nest-bird-emoji { font-size: 1.4rem; }
+  .nest-bird-info { display: flex; flex-direction: column; }
+  .nest-bird-key { font-family: 'Fredoka One', cursive; font-size: 0.95rem; color: var(--text); }
+  .nest-bird-val { font-size: 0.7rem; color: var(--muted); }
+  .nest-empty-label { font-size: 0.8rem; color: rgba(122,156,192,0.4); font-style: italic; }
+  .nest-indicator {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .nest.occupied .nest-indicator { background: var(--green); }
+  .nest.target .nest-indicator { background: var(--green); animation: pulse 0.8s infinite; }
+
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)}
+  }
+  @keyframes flash {
+    0%,100%{background:var(--card2)} 50%{background:rgba(245,200,66,0.15)}
+  }
+  @keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.6)}
+  }
+
+  /* Log */
+  .log-section { margin-bottom: 20px; }
+  .log-box {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 16px;
+    height: 110px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .log-box::-webkit-scrollbar { width: 4px; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .log-entry { display: block; }
+  .log-entry.info { color: var(--blue); }
+  .log-entry.success { color: var(--green); }
+  .log-entry.warn { color: var(--gold); }
+  .log-entry.error { color: var(--red); }
+  .log-entry.evict { color: var(--orange); }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+  .btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.5px;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--gold); color: #1a1200; }
+  .btn-primary:hover { background: #ffd85e; box-shadow: 0 6px 20px rgba(245,200,66,0.35); }
+  .btn-secondary { background: var(--card2); color: var(--muted); border: 1.5px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--muted); color: var(--text); }
+  .btn-danger { background: rgba(232,69,69,0.15); color: var(--red); border: 1.5px solid var(--red); }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 22px;
+    padding: 36px 40px;
+    text-align: center;
+    max-width: 380px;
+    width: 90%;
+    transform: scale(0.85);
+    transition: transform 0.3s;
+  }
+  .modal-overlay.show .modal { transform: scale(1); }
+  .modal-emoji { font-size: 3.5rem; margin-bottom: 12px; }
+  .modal-title { font-family: 'Fredoka One', cursive; font-size: 2rem; margin-bottom: 8px; }
+  .modal-msg { color: var(--muted); font-size: 0.9rem; margin-bottom: 22px; line-height: 1.5; }
+  .modal-stats { display: flex; gap: 16px; justify-content: center; margin-bottom: 24px; }
+
+  /* Instructions */
+  .instructions {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    font-size: 0.83rem;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 20px;
+  }
+  .instructions strong { color: var(--text); }
+
+  /* Level badge */
+  .level-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(155,109,255,0.12);
+    border: 1.5px solid rgba(155,109,255,0.4);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem;
+    color: var(--purple);
+    margin-bottom: 16px;
+  }
+
+  .evict-trail {
+    position: fixed;
+    pointer-events: none;
+    z-index: 50;
+    font-size: 1.5rem;
+    animation: flyup 0.7s ease forwards;
+  }
+  @keyframes flyup {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-60px) scale(1.5); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <div class="logo">🐦 Cuckoo <span>Hash</span></div>
+    <div class="subtitle">A Hashing Algorithm Mini Game</div>
+  </header>
+
+  <div class="level-badge" id="levelBadge">🎮 Level 1 — Beginner</div>
+
+  <div class="scorebar">
+    <div class="stat"><div class="stat-val" id="scoreVal">0</div><div class="stat-label">Score</div></div>
+    <div class="stat"><div class="stat-val" id="placedVal">0</div><div class="stat-label">Placed</div></div>
+    <div class="stat"><div class="stat-val" id="evictVal">0</div><div class="stat-label">Evictions</div></div>
+    <div class="stat"><div class="stat-val" id="movesVal">0</div><div class="stat-label">Moves</div></div>
+  </div>
+
+  <div class="algo-box">
+    <strong>🧠 Cuckoo Hashing</strong><br>
+    Two hash functions, two tables. Each key has <strong>exactly 2 possible slots</strong>.<br>
+    <code>h1(key) = key % TABLE_SIZE</code> &nbsp;&nbsp; <code>h2(key) = (key // TABLE_SIZE) % TABLE_SIZE</code><br>
+    If a slot is taken, the old bird gets <em>evicted</em> (cuckoo style!) and must find its alternate slot.
+  </div>
+
+  <div class="instructions">
+    <strong>How to Play:</strong> 1️⃣ Click a <strong>bird card</strong> to select it. &nbsp; 2️⃣ Click the <strong>correct nest</strong> (shown in green) to place it. &nbsp;
+    Wrong nest = penalty! &nbsp; If a nest is occupied, the current bird evicts the old one — just like real Cuckoo Hashing! &nbsp; Complete all birds to advance levels. 🏆
+  </div>
+
+  <!-- Bird queue -->
+  <div class="queue-section">
+    <div class="section-title">🐣 Birds to Place</div>
+    <div class="bird-queue" id="birdQueue"></div>
+  </div>
+
+  <!-- Hash tables -->
+  <div class="tables-row">
+    <div class="table-panel table1">
+      <div class="table-header">
+        🔵 Table 1
+        <span class="hash-formula">h1(k) = k % <span id="tsize1">7</span></span>
+      </div>
+      <div class="nest-list" id="table1"></div>
+    </div>
+    <div class="table-panel table2">
+      <div class="table-header">
+        🟠 Table 2
+        <span class="hash-formula">h2(k) = (k//<span id="tsize2">7</span>) % <span id="tsize3">7</span></span>
+      </div>
+      <div class="nest-list" id="table2"></div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-section">
+    <div class="section-title">📜 Algorithm Log</div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="showHint()">💡 Hint</button>
+    <button class="btn btn-danger" onclick="resetGame()">🔄 Reset</button>
+    <button class="btn btn-primary" onclick="nextLevel()">Next Level ▶</button>
+  </div>
+</div>
+
+<!-- Win Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-emoji" id="modalEmoji">🎉</div>
+    <div class="modal-title" id="modalTitle">Level Clear!</div>
+    <div class="modal-msg" id="modalMsg">You placed all birds correctly!</div>
+    <div class="modal-stats">
+      <div class="stat"><div class="stat-val" id="mScore">0</div><div class="stat-label">Score</div></div>
+      <div class="stat"><div class="stat-val" id="mEvict">0</div><div class="stat-label">Evictions</div></div>
+    </div>
+    <div class="btn-row" style="margin-bottom:0">
+      <button class="btn btn-primary" onclick="closeModal(); nextLevel()">▶ Next Level</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Stay</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== CUCKOO HASHING ENGINE ==========
+
+const BIRD_EMOJIS = ['🦜','🦚','🦉','🦅','🦆','🦢','🦩','🐦','🦋','🦤'];
+const BIRD_NAMES  = ['Parrot','Peacock','Owl','Eagle','Duck','Swan','Flamingo','Sparrow','Robin','Dodo'];
+
+let TABLE_SIZE = 7;
+let level = 1;
+let score = 0;
+let totalEvictions = 0;
+let totalMoves = 0;
+let placedCount = 0;
+
+let table1 = [];   // null or {key, emoji, name}
+let table2 = [];
+let birdQueue = []; // remaining birds to place
+let selectedBird = null; // {key, emoji, name}
+let hintUsed = false;
+
+function h1(key) { return key % TABLE_SIZE; }
+function h2(key) { return Math.floor(key / TABLE_SIZE) % TABLE_SIZE; }
+
+// ========== LEVEL CONFIG ==========
+const LEVELS = [
+  { size: 5, birds: 4, name: 'Beginner' },
+  { size: 7, birds: 6, name: 'Novice' },
+  { size: 7, birds: 9, name: 'Intermediate' },
+  { size: 9, birds: 12, name: 'Advanced' },
+  { size: 11, birds: 15, name: 'Expert' },
+];
+
+function getLevelConfig() {
+  const idx = Math.min(level - 1, LEVELS.length - 1);
+  return LEVELS[idx];
+}
+
+// ========== INIT ==========
+function initGame() {
+  const cfg = getLevelConfig();
+  TABLE_SIZE = cfg.size;
+  table1 = new Array(TABLE_SIZE).fill(null);
+  table2 = new Array(TABLE_SIZE).fill(null);
+  birdQueue = [];
+  selectedBird = null;
+  placedCount = 0;
+  hintUsed = false;
+
+  // Generate unique keys
+  const keys = generateUniqueKeys(cfg.birds, cfg.size);
+  keys.forEach((k, i) => {
+    birdQueue.push({ key: k, emoji: BIRD_EMOJIS[i % BIRD_EMOJIS.length], name: BIRD_NAMES[i % BIRD_NAMES.length] });
+  });
+
+  document.getElementById('tsize1').textContent = TABLE_SIZE;
+  document.getElementById('tsize2').textContent = TABLE_SIZE;
+  document.getElementById('tsize3').textContent = TABLE_SIZE;
+  document.getElementById('levelBadge').textContent = `🎮 Level ${level} — ${cfg.name}`;
+
+  clearLog();
+  log(`Level ${level} started. Table size = ${TABLE_SIZE}. Place ${cfg.birds} birds!`, 'info');
+
+  renderQueue();
+  renderTables();
+  updateStats();
+}
+
+function generateUniqueKeys(count, size) {
+  const keys = new Set();
+  let attempts = 0;
+  while (keys.size < count && attempts < 1000) {
+    const k = Math.floor(Math.random() * size * size) + 1;
+    // Ensure no collision in both tables simultaneously for all pairs
+    const h1k = k % size;
+    const h2k = Math.floor(k / size) % size;
+    // Prefer keys where h1 != h2 to make it interesting
+    if (!keys.has(k)) keys.add(k);
+    attempts++;
+  }
+  return [...keys];
+}
+
+// ========== RENDER ==========
+function renderQueue() {
+  const container = document.getElementById('birdQueue');
+  container.innerHTML = '';
+  if (birdQueue.length === 0) {
+    container.innerHTML = '<span style="color:var(--green);font-weight:700;font-size:0.9rem">✅ All birds placed!</span>';
+    return;
+  }
+  birdQueue.forEach((bird, i) => {
+    const card = document.createElement('div');
+    card.className = 'bird-card' + (selectedBird && selectedBird.key === bird.key ? ' selected' : '');
+    card.innerHTML = `
+      <div class="bird-emoji">${bird.emoji}</div>
+      <div class="bird-key">k=${bird.key}</div>
+      <div class="bird-hash">h1=${h1(bird.key)} h2=${h2(bird.key)}</div>
+    `;
+    card.onclick = () => selectBird(bird);
+    container.appendChild(card);
+  });
+}
+
+function renderTables() {
+  renderOneTable('table1', table1, 1);
+  renderOneTable('table2', table2, 2);
+}
+
+function renderOneTable(id, arr, tnum) {
+  const container = document.getElementById(id);
+  container.innerHTML = '';
+  arr.forEach((bird, i) => {
+    const nest = document.createElement('div');
+    nest.className = 'nest ' + (bird ? 'occupied' : 'empty');
+    nest.id = `t${tnum}n${i}`;
+
+    if (bird) {
+      nest.innerHTML = `
+        <div class="nest-idx">${i}</div>
+        <div class="nest-content">
+          <div class="nest-bird-emoji">${bird.emoji}</div>
+          <div class="nest-bird-info">
+            <div class="nest-bird-key">${bird.name} (k=${bird.key})</div>
+            <div class="nest-bird-val">h1=${h1(bird.key)} | h2=${h2(bird.key)}</div>
+          </div>
+        </div>
+        <div class="nest-indicator"></div>
+      `;
+    } else {
+      nest.innerHTML = `
+        <div class="nest-idx">${i}</div>
+        <div class="nest-content"><div class="nest-empty-label">empty nest</div></div>
+        <div class="nest-indicator"></div>
+      `;
+      nest.onclick = () => tryPlace(tnum, i);
+    }
+    container.appendChild(nest);
+  });
+
+  // Highlight target nests
+  if (selectedBird) {
+    const targetIdx = tnum === 1 ? h1(selectedBird.key) : h2(selectedBird.key);
+    const el = document.getElementById(`t${tnum}n${targetIdx}`);
+    if (el) {
+      el.classList.add('target');
+      el.onclick = () => tryPlace(tnum, targetIdx);
+    }
+  }
+}
+
+// ========== GAME LOGIC ==========
+function selectBird(bird) {
+  selectedBird = bird;
+  log(`Selected: ${bird.emoji} ${bird.name} (key=${bird.key}) → T1[${h1(bird.key)}] or T2[${h2(bird.key)}]`, 'info');
+  renderQueue();
+  renderTables();
+}
+
+function tryPlace(tableNum, idx) {
+  if (!selectedBird) {
+    log('Select a bird first!', 'warn');
+    return;
+  }
+
+  const bird = selectedBird;
+  const correctIdx = tableNum === 1 ? h1(bird.key) : h2(bird.key);
+
+  totalMoves++;
+
+  if (idx !== correctIdx) {
+    // Wrong nest
+    log(`❌ Wrong! ${bird.emoji} k=${bird.key} can't go in T${tableNum}[${idx}]. Try T1[${h1(bird.key)}] or T2[${h2(bird.key)}]`, 'error');
+    const el = document.getElementById(`t${tableNum}n${idx}`);
+    if (el) { el.classList.add('wrong'); setTimeout(() => el.classList.remove('wrong'), 500); }
+    score = Math.max(0, score - 5);
+    updateStats();
+    return;
+  }
+
+  // Correct slot — perform cuckoo insert
+  cuckooInsert(bird, tableNum, idx);
+}
+
+function cuckooInsert(bird, preferTable, preferIdx) {
+  let currentBird = bird;
+  let useTable = preferTable;
+  let useIdx = preferIdx;
+  let chainDepth = 0;
+  const MAX_CHAIN = TABLE_SIZE * 2;
+
+  while (chainDepth < MAX_CHAIN) {
+    const arr = useTable === 1 ? table1 : table2;
+
+    if (!arr[useIdx]) {
+      // Empty — place here
+      arr[useIdx] = currentBird;
+      if (currentBird.key === bird.key && chainDepth === 0) {
+        log(`✅ Placed ${currentBird.emoji} ${currentBird.name} (k=${currentBird.key}) in T${useTable}[${useIdx}]`, 'success');
+        score += 10 + (hintUsed ? 0 : 5);
+        placedCount++;
+        birdQueue = birdQueue.filter(b => b.key !== bird.key);
+      } else {
+        log(`   └ Evicted ${currentBird.emoji} settled in T${useTable}[${useIdx}]`, 'success');
+      }
+      selectedBird = null;
+      renderQueue();
+      renderTables();
+      updateStats();
+
+      // Flash evicted nest
+      if (chainDepth > 0) {
+        const el = document.getElementById(`t${useTable}n${useIdx}`);
+        if (el) { el.classList.add('evicted'); setTimeout(() => el.classList.remove('evicted'), 500); }
+      }
+
+      checkWin();
+      return;
+    } else {
+      // Occupied — evict!
+      const evicted = arr[useIdx];
+      arr[useIdx] = currentBird;
+
+      if (currentBird.key === bird.key) {
+        log(`🐦 Placed ${currentBird.emoji} at T${useTable}[${useIdx}], evicting ${evicted.emoji} ${evicted.name} (k=${evicted.key})`, 'evict');
+        score += 10 + (hintUsed ? 0 : 5);
+        placedCount++;
+        birdQueue = birdQueue.filter(b => b.key !== bird.key);
+        selectedBird = null;
+      } else {
+        log(`   ↩ ${currentBird.emoji} evicts ${evicted.emoji} ${evicted.name} from T${useTable}[${useIdx}]`, 'evict');
+      }
+
+      totalEvictions++;
+      updateStats();
+
+      // Flash
+      const el = document.getElementById(`t${useTable}n${useIdx}`);
+      if (el) { el.classList.add('evicted'); setTimeout(() => el.classList.remove('evicted'), 400); }
+      spawnEvictParticle(el);
+
+      // Now evicted bird tries its alternate table
+      currentBird = evicted;
+      if (useTable === 1) {
+        useTable = 2; useIdx = h2(evicted.key);
+      } else {
+        useTable = 1; useIdx = h1(evicted.key);
+      }
+      chainDepth++;
+    }
+  }
+
+  // Cycle detected — rehash needed (tell user, reset)
+  log(`⚠️ Cycle detected! Rehashing... (level resets with new keys)`, 'warn');
+  score = Math.max(0, score - 20);
+  setTimeout(() => { initGame(); }, 1200);
+}
+
+// ========== HINT ==========
+function showHint() {
+  if (!selectedBird) {
+    // Auto select first bird
+    if (birdQueue.length > 0) {
+      selectBird(birdQueue[0]);
+      log(`💡 Hint: Selected ${birdQueue[0].emoji}. Now click a green nest!`, 'warn');
+    }
+    return;
+  }
+  hintUsed = true;
+  log(`💡 Hint: ${selectedBird.emoji} k=${selectedBird.key} → T1[${h1(selectedBird.key)}] or T2[${h2(selectedBird.key)}]`, 'warn');
+}
+
+// ========== WIN ==========
+function checkWin() {
+  if (birdQueue.length === 0) {
+    setTimeout(() => {
+      document.getElementById('mScore').textContent = score;
+      document.getElementById('mEvict').textContent = totalEvictions;
+      document.getElementById('modalTitle').textContent = level >= LEVELS.length ? '🏆 Champion!' : '🎉 Level Clear!';
+      document.getElementById('modalMsg').textContent = level >= LEVELS.length
+        ? `You mastered all levels of Cuckoo Hashing! Total score: ${score}`
+        : `All birds placed! Evictions: ${totalEvictions}. Ready for Level ${level + 1}?`;
+      document.getElementById('modalEmoji').textContent = level >= LEVELS.length ? '🏆' : '🎉';
+      document.getElementById('modalOverlay').classList.add('show');
+    }, 500);
+  }
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+function nextLevel() {
+  if (level < LEVELS.length) {
+    level++;
+    initGame();
+  } else {
+    log('🏆 You have completed all levels! Resetting...', 'success');
+    level = 1; score = 0; totalEvictions = 0; totalMoves = 0;
+    initGame();
+  }
+}
+
+function resetGame() {
+  score = 0; totalEvictions = 0; totalMoves = 0; placedCount = 0;
+  initGame();
+}
+
+// ========== PARTICLES ==========
+function spawnEvictParticle(el) {
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const div = document.createElement('div');
+  div.className = 'evict-trail';
+  div.textContent = '💥';
+  div.style.left = (rect.left + rect.width / 2 - 15) + 'px';
+  div.style.top = (rect.top - 10) + 'px';
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 800);
+}
+
+// ========== LOG ==========
+function log(msg, type = 'info') {
+  const box = document.getElementById('logBox');
+  const entry = document.createElement('span');
+  entry.className = 'log-entry ' + type;
+  const time = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  entry.textContent = `[${time}] ${msg}\n`;
+  box.appendChild(entry);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() { document.getElementById('logBox').innerHTML = ''; }
+
+function updateStats() {
+  document.getElementById('scoreVal').textContent = score;
+  document.getElementById('placedVal').textContent = placedCount;
+  document.getElementById('evictVal').textContent = totalEvictions;
+  document.getElementById('movesVal').textContent = totalMoves;
+}
+
+// ========== START ==========
+initGame();
+</script>
+</body>
+</html>
